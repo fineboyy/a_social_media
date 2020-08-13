@@ -8,6 +8,7 @@ export class LocalStorageService {
   constructor() { }
 
   tokenName = "--token-ASM";
+  postThemeName = "--post-theme-ASM"
 
   private set(key, value) {
     if (localStorage) {
@@ -43,4 +44,12 @@ export class LocalStorageService {
   public removeToken() {
     localStorage.removeItem(this.tokenName)
   }
+
+public setPostTheme(theme){
+  this.set(this.postThemeName, theme);
+}
+
+public getPostTheme(){
+  return this.get(this.postThemeName)
+}
 }

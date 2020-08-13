@@ -13,8 +13,10 @@ router.post("/make-friend-request/:from/:to", middleware.authorize, usersCtrl.ma
 router.get("/get-user-data/:userid", middleware.authorize, usersCtrl.getUserData)
 router.get("/get-friend-requests", middleware.authorize, usersCtrl.getFriendRequests)
 router.post("/resolve-friend-request/:from/:to", middleware.authorize, usersCtrl.resolveFriendRequest)
+router.post("/create-post", middleware.authorize, usersCtrl.createPost)
 
 router.delete("/all", usersCtrl.deleteAllUsers);
+router.get("/all", usersCtrl.getAllUsers);
 
 
 module.exports = router;

@@ -23,7 +23,7 @@ const postSchema = new mongoose.Schema({
         type: String, 
         required: true
     },
-    data: {
+    date: {
         type: Date,
         default: Date.now
     },
@@ -44,8 +44,7 @@ const postSchema = new mongoose.Schema({
 const messageSchema = new mongoose.Schema({
     from_id: {
         type: String,
-        required: true,
-        unique: true
+        required: true
     },
     content: [{
         messenger: String,

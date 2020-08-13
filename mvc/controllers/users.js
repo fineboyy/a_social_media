@@ -1,7 +1,11 @@
 const passport = require('passport');
 const mongoose = require('mongoose');
 const { query } = require('express');
+const { post } = require('../routes/users');
+const timeAgo = require('time-ago')
+
 const User = mongoose.model('User');
+const Post = mongoose.model('Post');
 
 
 const containsDuplicate = function (array) {
@@ -32,7 +36,7 @@ const registerUser = function ({ body }, res) {
 
     user.save((err, newUser) => {
         if (err) {
-            if (err.errmsg && err.errmsg.includes("duplicate key error")) {
+            if (err.errmsg && err.errmsg.includes("duplicate key error") && err.errmsg.includes("email")) {
                 return res.json({ message: "The provided email is already registered" })
             }
             return res.json({ message: "Something went wrong." })
@@ -60,8 +64,44 @@ const loginUser = function (req, res) {
     })(req, res);
 }
 
-const generateFeed = function (req, res) {
-    res.status(200).json({ message: "Generating posts for a user's feed." });
+const generateFeed = function ({payload}, res) {
+    let posts = [];
+    const maxAmountOfPosts = 48
+
+    function addNameAndAgoToPosts(array, name){
+        for(item of array){
+            item.name = name
+            item.ago = timeAgo.ago(item.date)
+        }
+    }
+
+    let myPosts = new Promise(function(resolve, reject) {
+        User.findById(payload._id, "name posts friends",{lean: true}, (err, user) => {
+            if(err) { return res.json({err: err}) }
+            addNameAndAgoToPosts(user.posts, user.name)
+            posts.push(...user.posts)
+            resolve(user.friends)
+        })
+    })
+
+    let myFriendsPosts = myPosts.then((friendsArray) => {
+        return new Promise(function(resolve, reject) {
+            User.find({ '_id' : {$in: friendsArray} }, "name posts", {lean: true},  (err, users) => {
+                if (err) { return res.json({ err: err }) }
+                for(user of users){
+                    addNameAndAgoToPosts(user.posts, user.name)
+                    posts.push(...user.posts)
+                }
+                resolve()
+            })
+        })
+    })
+
+    myFriendsPosts.then((friendsArray) => {
+        posts.sort((a, b) => (a.date > b.date ) ? -1 : 1)
+        posts = posts.slice(0, maxAmountOfPosts)
+        res.statusJson(200, { posts: posts });
+    })
 }
 
 const getSearchResults = function ({ query, payload }, res) {
@@ -159,6 +199,28 @@ const resolveFriendRequest = function({query, params}, res) {
     })    
 }
 
+const createPost = function({body, payload}, res) {
+    if(!body.content || !body.theme){
+        return res.statusJson(400, {message: "Insufficient data sent with the request."})
+    }
+    let userId = payload._id
+    const post = new Post()
+    post.theme = body.theme
+    post.content = body.content
+
+    User.findById(userId, (err, user) => {
+        if (err) { return res.json({ err: err }) }
+
+        let newPost = post.toObject();
+        newPost.name = payload.name
+
+        user.posts.push(post)
+        user.save((err) => {
+            if (err) { return res.json({ err: err }) }
+            return res.statusJson(201, {message: "Created Post", newPost: newPost})
+        })
+    })
+}
 
 
 
@@ -169,10 +231,12 @@ const resolveFriendRequest = function({query, params}, res) {
 
 
 
-
-
-
-
+const getAllUsers = function (req, res) {
+    User.find((err, users) => {
+        if (err) { return res.send({ error: err }); }
+        return res.json({ message: "Retrieved All Users", users: users })
+    })
+}
 const deleteAllUsers = function (req, res) {
     User.deleteMany({}, (err, info) => {
         if (err) { return res.send({ error: err }); }
@@ -182,6 +246,7 @@ const deleteAllUsers = function (req, res) {
 
 
 module.exports = {
+    getAllUsers,
     deleteAllUsers,
     registerUser,
     loginUser,
@@ -190,5 +255,6 @@ module.exports = {
     makeFriendRequest,
     getUserData,
     getFriendRequests,
-    resolveFriendRequest
+    resolveFriendRequest,
+    createPost
 }
