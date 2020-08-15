@@ -1,12 +1,14 @@
 const passport = require('passport');
 const mongoose = require('mongoose');
 const { query } = require('express');
-const { post } = require('../routes/users');
+const { post, copy } = require('../routes/users');
 const timeAgo = require('time-ago')
 
 const User = mongoose.model('User');
 const Post = mongoose.model('Post');
+const Comment = mongoose.model('Comment');
 
+//HELPER FUNCTIONS
 
 const containsDuplicate = function (array) {
     array.sort();
@@ -16,6 +18,42 @@ const containsDuplicate = function (array) {
         }
     }
 }
+
+const addCommentDetails = function (posts) {
+    return new Promise(function (resolve, reject) {
+        let promises = []
+        for (let post of posts) {
+            for (let comment of post.comments) {
+                let promise = new Promise(function (resolve, reject) {
+                    User.findById(comment.commenter_id, "name profile_image", (err, user) => {
+                        comment.commenter_name = user.name
+                        comment.commenter_profile_image = user.profile_image;
+                        resolve(comment)
+                    })
+                })
+                promises.push(promise)
+            }
+        }
+        Promise.all(promises).then((val) => {
+            resolve(posts)
+        })
+    })
+}
+
+const getRandom = function(min, max) {
+    return Math.floor(Math.random() * (max - min) ) + min;
+}
+
+const addToPosts = function(array, user) {
+    for (item of array) {
+        item.name = user.name
+        item.ago = timeAgo.ago(item.date)
+        item.ownerProfileImage = user.profile_image
+        item.ownerid = user._id
+    }
+}
+
+//========================================================================
 
 
 const registerUser = function ({ body }, res) {
@@ -64,32 +102,25 @@ const loginUser = function (req, res) {
     })(req, res);
 }
 
-const generateFeed = function ({payload}, res) {
+const generateFeed = function ({ payload }, res) {
     let posts = [];
     const maxAmountOfPosts = 48
 
-    function addNameAndAgoToPosts(array, name){
-        for(item of array){
-            item.name = name
-            item.ago = timeAgo.ago(item.date)
-        }
-    }
-
-    let myPosts = new Promise(function(resolve, reject) {
-        User.findById(payload._id, "name posts friends",{lean: true}, (err, user) => {
-            if(err) { return res.json({err: err}) }
-            addNameAndAgoToPosts(user.posts, user.name)
+    let myPosts = new Promise(function (resolve, reject) {
+        User.findById(payload._id, "name posts profile_image friends", { lean: true }, (err, user) => {
+            if (err) { return res.json({ err: err }) }
+            addToPosts(user.posts, user)
             posts.push(...user.posts)
             resolve(user.friends)
         })
     })
 
     let myFriendsPosts = myPosts.then((friendsArray) => {
-        return new Promise(function(resolve, reject) {
-            User.find({ '_id' : {$in: friendsArray} }, "name posts", {lean: true},  (err, users) => {
+        return new Promise(function (resolve, reject) {
+            User.find({ '_id': { $in: friendsArray } }, "name profile_image posts", { lean: true }, (err, users) => {
                 if (err) { return res.json({ err: err }) }
-                for(user of users){
-                    addNameAndAgoToPosts(user.posts, user.name)
+                for (user of users) {
+                    addToPosts(user.posts, user)
                     posts.push(...user.posts)
                 }
                 resolve()
@@ -98,16 +129,19 @@ const generateFeed = function ({payload}, res) {
     })
 
     myFriendsPosts.then((friendsArray) => {
-        posts.sort((a, b) => (a.date > b.date ) ? -1 : 1)
+        posts.sort((a, b) => (a.date > b.date) ? -1 : 1)
         posts = posts.slice(0, maxAmountOfPosts)
-        res.statusJson(200, { posts: posts });
+
+        addCommentDetails(posts).then((posts) => {
+            res.statusJson(200, { posts: posts });
+        })
     })
 }
 
 const getSearchResults = function ({ query, payload }, res) {
 
     if (!query.query) { return res.json({ err: "Missing a query" }) }
-    User.find({ name: { $regex: query.query, $options: "i" } }, "name friends friend_requests", (err, results) => {
+    User.find({ name: { $regex: query.query, $options: "i" } }, "name friends profile_image friend_requests", (err, results) => {
         if (err) { return res.json({ err: err }) }
         results = results.slice(0, 20);
         for (let i = 0; i < results.length; i++) {
@@ -127,56 +161,84 @@ const makeFriendRequest = function ({ params }, res) {
     User.findById(params.to, (err, user) => {
         if (err) { return res.json({ err: err }) }
         if (containsDuplicate([params.from, ...user.friend_requests])) {
-            return res.json({message: "Friend request is already sent."})
+            return res.json({ message: "Friend request is already sent." })
 
         }
         user.friend_requests.push(params.from)
         user.save((err, user) => {
             if (err) { return res.json({ err: err }) }
-            return res.statusJson(201, {message: "Successfully sent friend request" })
+            return res.statusJson(201, { message: "Successfully sent friend request" })
         })
     })
 }
 
-const getUserData = function({params}, res) {
-    User.findById(params.userid, (err, user) => {
+const getUserData = function ({ params }, res) {
+    User.findById(params.userid, "-salt -password", {lean: true}, (err, user) => {
         if (err) { return res.json({ err: err }) }
-        res.statusJson(200, {user: user})
+
+        function getRandomFriends(friendsList){
+            let copyOfFriendsList = Array.from(friendsList)
+            let randomIds = []
+
+            for(let i = 0; i < 6; i++){
+                if(friendsList.length <= 6){randomIds = copyOfFriendsList; break;}
+                
+                let randomId = getRandom(0, copyOfFriendsList.length)
+                randomIds.push(copyOfFriendsList[randomId])
+                copyOfFriendsList.splice(randomId, 1)
+            }
+            return new Promise(function(resolve, reject){
+                User.find({'_id' : {$in: randomIds}}, "name profile_image", (err, friends) => {
+                    if(err) { return res.json({err: err}) }
+                    resolve(friends)
+                })
+            })
+        }
+
+        user.posts.sort((a, b) => (a.date > b.date) ? -1 : 1)
+        addToPosts(user.posts, user)
+
+        let randomFriends = getRandomFriends(user.friends)
+        let commentDetails = addCommentDetails(user.posts)
+
+        Promise.all([randomFriends, commentDetails]).then((val) => {
+            user.random_friends = val[0]
+            res.statusJson(200, { user: user })
+        })
     })
 }
-
-const getFriendRequests = function({query}, res) {
+const getFriendRequests = function ({ query }, res) {
     let friendRequests = JSON.parse(query.friend_requests)
 
-    User.find({ '_id' : {$in: friendRequests}}, "name profile_image", (err, users) => {
+    User.find({ '_id': { $in: friendRequests } }, "name profile_image", (err, users) => {
         if (err) { return res.json({ err: err }) }
-        return res.statusJson(200, {message: "Getting friend requests", users: users})
+        return res.statusJson(200, { message: "Getting friend requests", users: users })
     });
 }
 
-const resolveFriendRequest = function({query, params}, res) {
+const resolveFriendRequest = function ({ query, params }, res) {
 
     User.findById(params.to, (err, user) => {
         if (err) { return res.json({ err: err }) }
 
-        for(let i = 0; i < user.friend_requests.length; i++) {
-            if(user.friend_requests[i] == params.from) {
+        for (let i = 0; i < user.friend_requests.length; i++) {
+            if (user.friend_requests[i] == params.from) {
                 user.friend_requests.splice(i, 1);
                 break;
             }
         }
 
         let promise = new Promise((resolve, reject) => {
-            if(query.resolution == "accept") {
+            if (query.resolution == "accept") {
 
-                if(containsDuplicate([params.from, ...user.friends])) {
-                    return res.json({message: "Duplicate Error."})
+                if (containsDuplicate([params.from, ...user.friends])) {
+                    return res.json({ message: "Duplicate Error." })
                 }
                 user.friends.push(params.from)
                 User.findById(params.from, (err, user) => {
                     if (err) { return res.json({ err: err }) }
-                    if(containsDuplicate([params.to, ...user.friends])) {
-                        return res.json({message: "Duplicate Error."})
+                    if (containsDuplicate([params.to, ...user.friends])) {
+                        return res.json({ message: "Duplicate Error." })
                     }
 
                     user.friends.push(params.to)
@@ -193,15 +255,15 @@ const resolveFriendRequest = function({query, params}, res) {
         promise.then(() => {
             user.save((err, user) => {
                 if (err) { return res.json({ err: err }) }
-                res.statusJson(201, {message: "Resolved friend request",})
+                res.statusJson(201, { message: "Resolved friend request", })
             })
         })
-    })    
+    })
 }
 
-const createPost = function({body, payload}, res) {
-    if(!body.content || !body.theme){
-        return res.statusJson(400, {message: "Insufficient data sent with the request."})
+const createPost = function ({ body, payload }, res) {
+    if (!body.content || !body.theme) {
+        return res.statusJson(400, { message: "Insufficient data sent with the request." })
     }
     let userId = payload._id
     const post = new Post()
@@ -213,23 +275,59 @@ const createPost = function({body, payload}, res) {
 
         let newPost = post.toObject();
         newPost.name = payload.name
+        newPost.ownerid = payload._id
+        newPost.ownerProfileImage = user.profile_image
 
         user.posts.push(post)
         user.save((err) => {
             if (err) { return res.json({ err: err }) }
-            return res.statusJson(201, {message: "Created Post", newPost: newPost})
+            return res.statusJson(201, { message: "Created Post", newPost: newPost })
         })
     })
 }
 
+const likeUnlike = function ({ payload, params }, res) {
+    User.findById(params.ownerid, (err, user) => {
+        if (err) { return res.json({ err: err }) }
 
+        const post = user.posts.id(params.postid)
+        if (post.likes.includes(payload._id)) {
+            post.likes.splice(post.likes.indexOf(payload._id), 1)
+        } else {
+            post.likes.push(payload._id)
+        }
+        user.save((err, user) => {
+            if (err) { return res.json({ err: err }) }
+            res.statusJson(201, { message: "Like or Unlike Post" })
+        })
+    })
+}
 
+const postCommentOnPost = function ({ body, payload, params }, res) {
+    User.findById(params.ownerid, (err, user) => {
+        if (err) { return res.json({ err: err }) }
 
+        const post = user.posts.id(params.postid)
 
+        let comment = new Comment();
+        comment.commenter_id = payload._id
+        comment.comment_content = body.content
+        post.comments.push(comment)
 
+        user.save((err, user) => {
+            if (err) { return res.json({ err: err }) }
 
-
-
+            User.findById(payload._id, "name profile_image", (err, user) => {
+                if (err) { return res.json({ err: err }) }
+                res.statusJson(201, {
+                    message: "Posted Comment",
+                    comment: comment,
+                    commenter: user
+                })
+            })
+        })
+    })
+}
 
 const getAllUsers = function (req, res) {
     User.find((err, users) => {
@@ -256,5 +354,7 @@ module.exports = {
     getUserData,
     getFriendRequests,
     resolveFriendRequest,
-    createPost
+    createPost,
+    likeUnlike,
+    postCommentOnPost
 }

@@ -4,10 +4,10 @@ const jwt = require('jsonwebtoken');
 
 
 const commentSchema = new mongoose.Schema({
-    commenter_name: {
-        type: String,
-        required: true
-    },
+    // commenter_name: {
+    //     type: String,
+    //     required: true
+    // },
     commenter_id: {
         type: String,
         required: true
@@ -32,8 +32,8 @@ const postSchema = new mongoose.Schema({
         default: "primary"
     },
     likes: {
-        type: Number,
-        default: 0
+        type: [String],
+        default: []
     },
     comments: {
         type: [commentSchema],

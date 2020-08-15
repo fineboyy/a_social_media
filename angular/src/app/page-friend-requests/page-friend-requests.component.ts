@@ -2,6 +2,7 @@ import { Component, OnInit, Inject } from '@angular/core';
 import { UserDataService } from '../user-data.service'
 import { ApiService } from '../api.service'
 import { Title } from '@angular/platform-browser'
+import { AutoUnsubscribe } from '../unsubscribe'
 import { DOCUMENT } from '@angular/common'
 
 @Component({
@@ -9,6 +10,8 @@ import { DOCUMENT } from '@angular/common'
   templateUrl: './page-friend-requests.component.html',
   styleUrls: ['./page-friend-requests.component.css']
 })
+
+@AutoUnsubscribe
 export class PageFriendRequestsComponent implements OnInit {
 
   constructor(
@@ -24,15 +27,14 @@ export class PageFriendRequestsComponent implements OnInit {
     this.title.setTitle("Friend  Request")
     this.document.getElementById('sidebarToggleTop').classList.add("d-none")
 
-    this.centralUserData.getUserData.subscribe((data) => {
+    let userDataEvent = this.centralUserData.getUserData.subscribe((data) => {
       this.userData = data;
 
       let array = JSON.stringify(data.friend_requests)
 
       let requestObject =  {
         location: `users/get-friend-requests?friend_requests=${array}`,
-        type: "GET",
-        authorize: true
+        method: "GET"
       }
       this.api.makeRequest(requestObject).then((val) => {
         if(val.statusCode === 200) {
@@ -40,7 +42,11 @@ export class PageFriendRequestsComponent implements OnInit {
         }
       });
     });
+
+    this.subscriptions.push(userDataEvent)
   }
+
+  private subscriptions = []
 
   public userData: object = {};
   public friendRequests = [];

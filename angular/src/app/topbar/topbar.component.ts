@@ -1,10 +1,11 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { Router } from '@angular/router'
 import { AuthService } from '../auth.service'
 import { LocalStorageService } from '../local-storage.service'
 import { EventEmitterService } from '../event-emitter.service'
 import { UserDataService } from '../user-data.service'
 import { ApiService } from '../api.service'
+import { AutoUnsubscribe } from '../unsubscribe'
 
 
 @Component({
@@ -12,6 +13,8 @@ import { ApiService } from '../api.service'
   templateUrl: './topbar.component.html',
   styleUrls: ['./topbar.component.css']
 })
+@AutoUnsubscribe
+
 export class TopbarComponent implements OnInit {
 
   constructor(
@@ -29,36 +32,41 @@ export class TopbarComponent implements OnInit {
     this.usersId = this.storage.getParsedToken()._id
 
 
-    this.events.onAlertEvent.subscribe((msg) => {
+    let alertEvent = this.events.onAlertEvent.subscribe((msg) => {
       this.alertMessage = msg;
     });
-    this.events.updateNumOfFriendRequestsEvent.subscribe((msg) => {
+    let friendRequestEvent = this.events.updateNumOfFriendRequestsEvent.subscribe((msg) => {
       this.numOfFriendRequests--
     });
 
-    this.centralUserData.getUserData.subscribe((data) => {
+    let userDataEvent = this.centralUserData.getUserData.subscribe((data) => {
       this.userData = data
       this.numOfFriendRequests = data.friend_requests.length
+      this.profilePicture = data.profile_image
     })
 
     let requestObject = {
       location: `users/get-user-data/${this.usersId}`,
-      type: "GET",
-      authorize: true
+      method: "GET",
     }
-
+  
     this.api.makeRequest(requestObject).then((val) => {
           this.centralUserData.getUserData.emit(val.user)
     })
 
+    this.subscriptions.push(alertEvent, friendRequestEvent, userDataEvent)
   }
+
   public query: string = "";
   public usersName: string = "";
   public usersId: string = "";
   public alertMessage: string = "";
+  public profilePicture: string = "default-avatar";
 
   public userData: object = {}
   public numOfFriendRequests: number = 0;
+
+  private subscriptions = []
 
   public searchForFriends(){
     this.router.navigate(['/search-results', {query: this.query}])

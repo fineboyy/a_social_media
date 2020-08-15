@@ -29,14 +29,11 @@ export class ResultRequestComponent implements OnInit {
   public accept() {
     this.updateRequests()
     this.api.resolveFriendRequest("accept", this.resultRequest._id).then((val) => {
-      console.log(val)
     })
   }
   public decline() {
     this.updateRequests()
-    console.log("Decline friend frequest from user, ", this.resultRequest._id)
     this.api.resolveFriendRequest("decline", this.resultRequest._id).then((val) => {
-      console.log(val)
     })
   }
 

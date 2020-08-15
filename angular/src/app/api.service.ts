@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { LocalStorageService } from './local-storage.service';
 import { EventEmitterService } from './event-emitter.service';
+import { rejects } from 'assert';
 
 @Injectable({
   providedIn: 'root'
@@ -20,8 +21,8 @@ export class ApiService {
   private errorHandler(error) { return error }
 
   public makeRequest(requestObject): any {
-    let type = requestObject.type.toLowerCase();
-    if (!type) { return console.log("No type specified in the request object.") }
+    let method = requestObject.method.toLowerCase();
+    if (!method) { return console.log("No method specified in the request object.") }
 
     let body = requestObject.body || {};
     let location = requestObject.location;
@@ -31,7 +32,7 @@ export class ApiService {
 
     let httpOptions = {};
 
-    if (requestObject.authorize) {
+    if (this.storage.getToken()) {
       httpOptions = {
         headers: new HttpHeaders({
           'Authorization': `Bearer ${this.storage.getToken()}`
@@ -39,18 +40,18 @@ export class ApiService {
       }
     }
 
-    if (type === 'get') {
+    if (method === 'get') {
       return this.http.get(url, httpOptions).toPromise()
         .then(this.successHandler)
         .catch(this.errorHandler);
     }
-    if (type === 'post') {
+    if (method === 'post') {
       return this.http.post(url, body, httpOptions).toPromise()
         .then(this.successHandler)
         .catch(this.errorHandler)
     }
 
-    console.log("Could not make the request. Make sure a type of GET or POST is supplied.")
+    console.log("Could not make the request. Make sure a method of GET or POST is supplied.")
 
   }
 
@@ -59,17 +60,17 @@ export class ApiService {
 
     let requestObject = {
       location: `users/make-friend-request/${from}/${to}`,
-      type: "POST",
-      authorize: true
+      method: "POST"
     }
-    this.makeRequest(requestObject).then((val) => {
-      console.log(val)
-
-      if (val.statusCode === 201) {
-        this.events.onAlertEvent.emit("Successfully sent a friend request")
-      } else {
-        this.events.onAlertEvent.emit("Something went wrong and we could not send the friend request. Perhaps you already sent a friend request to the user")
-      }
+    return new Promise((resolve, reject) => {
+      this.makeRequest(requestObject).then((val) => {
+        if (val.statusCode === 201) {
+          this.events.onAlertEvent.emit("Successfully sent a friend request")
+        } else {
+          this.events.onAlertEvent.emit("Something went wrong and we could not send the friend request. Perhaps you already sent a friend request to the user")
+        }
+        resolve(val)
+      })
     })
   }
 
@@ -79,8 +80,7 @@ export class ApiService {
     return new Promise((resolve, reject) => {
       let requestObject = {
         location: `users/resolve-friend-request/${id}/${to}?resolution=${resolution}`,
-        type: "POST",
-        authorize: true
+        method: "POST",
       }
       this.makeRequest(requestObject).then((val) => {
         if(val.statusCode === 201) {
