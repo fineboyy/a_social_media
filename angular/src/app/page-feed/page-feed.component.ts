@@ -29,6 +29,9 @@ export class PageFeedComponent implements OnInit {
 
     this.api.makeRequest(requestObject).then((val) => {
       if (val.statusCode == 200) {
+        this.bestiePosts = val.bestiePosts
+
+
         let fullCol1 = val.posts.filter((val, i) => i % 4 === 0)
         let fullCol2 = val.posts.filter((val, i) => i % 4 === 1)
         let fullCol3 = val.posts.filter((val, i) => i % 4 === 2)
@@ -41,6 +44,7 @@ export class PageFeedComponent implements OnInit {
     })
   }
 
+  public bestiePosts = []
   public posts = {
     col1: [],
     col2: [],

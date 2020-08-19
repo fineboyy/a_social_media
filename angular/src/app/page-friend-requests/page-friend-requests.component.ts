@@ -1,5 +1,5 @@
 import { Component, OnInit, Inject } from '@angular/core';
-import { UserDataService } from '../user-data.service'
+import { EventEmitterService } from '../event-emitter.service'
 import { ApiService } from '../api.service'
 import { Title } from '@angular/platform-browser'
 import { AutoUnsubscribe } from '../unsubscribe'
@@ -15,7 +15,7 @@ import { DOCUMENT } from '@angular/common'
 export class PageFriendRequestsComponent implements OnInit {
 
   constructor(
-    private centralUserData: UserDataService,
+    private events: EventEmitterService,
     private api: ApiService,
     private title: Title,
     @Inject (DOCUMENT) private document: Document,
@@ -27,7 +27,7 @@ export class PageFriendRequestsComponent implements OnInit {
     this.title.setTitle("Friend  Request")
     this.document.getElementById('sidebarToggleTop').classList.add("d-none")
 
-    let userDataEvent = this.centralUserData.getUserData.subscribe((data) => {
+    let userDataEvent = this.events.getUserData.subscribe((data) => {
       this.userData = data;
 
       let array = JSON.stringify(data.friend_requests)

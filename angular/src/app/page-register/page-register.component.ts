@@ -47,10 +47,10 @@ export class PageRegisterComponent implements OnInit {
       return this.formError = "All fields are required"
     }
 
-    // var re = new RegExp(/^[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*@(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?/);
-    // if(!re.test(this.credentials.email)) {
-    //   return this.formError = "Please enter a valid email address.";
-    // }
+    var re = new RegExp(/^[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*@(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?/);
+    if(!re.test(this.credentials.email)) {
+      return this.formError = "Please enter a valid email address.";
+    }
 
     if (this.credentials.password !== this.credentials.password_confirm) {
       return this.formError = "Passwords don't match.";

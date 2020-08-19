@@ -3,7 +3,6 @@ import { Router } from '@angular/router'
 import { AuthService } from '../auth.service'
 import { LocalStorageService } from '../local-storage.service'
 import { EventEmitterService } from '../event-emitter.service'
-import { UserDataService } from '../user-data.service'
 import { ApiService } from '../api.service'
 import { AutoUnsubscribe } from '../unsubscribe'
 
@@ -22,10 +21,12 @@ export class TopbarComponent implements OnInit {
     private router: Router,
     private storage: LocalStorageService,
     private events: EventEmitterService,
-    private centralUserData: UserDataService,
     private api: ApiService,
 
   ) { }
+
+
+  //=======================================================================
 
   ngOnInit() { 
     this.usersName = this.storage.getParsedToken().name
@@ -35,14 +36,29 @@ export class TopbarComponent implements OnInit {
     let alertEvent = this.events.onAlertEvent.subscribe((msg) => {
       this.alertMessage = msg;
     });
+
     let friendRequestEvent = this.events.updateNumOfFriendRequestsEvent.subscribe((msg) => {
-      this.numOfFriendRequests--
+      this.notifications.friendRequests--
     });
 
-    let userDataEvent = this.centralUserData.getUserData.subscribe((data) => {
-      this.userData = data
-      this.numOfFriendRequests = data.friend_requests.length
-      this.profilePicture = data.profile_image
+    let userDataEvent = this.events.getUserData.subscribe((user) => {
+      this.notifications.friendRequests = user.friend_requests.length
+      this.notifications.messages = user.new_message_notifications.length
+      this.notifications.alerts = user.new_notifications
+      this.profilePicture = user.profile_image
+
+      this.setAlerts(user.notifications)
+      this.setMessagePreviews(user.messages, user.new_message_notifications)
+
+    })
+
+    let resetMessagesEvent = this.events.resetMessageNotificationsEvent.subscribe(() => {
+      this.notifications.messages = 0;
+    })
+
+    let updateMessageEvent = this.events.updateSendMessageObjectEvent.subscribe((d) => {
+      this.sendMessageObject.id = d.id
+      this.sendMessageObject.name = d.name
     })
 
     let requestObject = {
@@ -51,25 +67,135 @@ export class TopbarComponent implements OnInit {
     }
   
     this.api.makeRequest(requestObject).then((val) => {
-          this.centralUserData.getUserData.emit(val.user)
+      if(val.status == 404) { return this.auth.logout();}
+
+      if(val.statusCode == 200) {
+        this.events.getUserData.emit(val.user)
+      }
     })
 
-    this.subscriptions.push(alertEvent, friendRequestEvent, userDataEvent)
+    this.subscriptions.push(alertEvent, friendRequestEvent, userDataEvent, updateMessageEvent, resetMessagesEvent)
   }
 
-  public query: string = "";
-  public usersName: string = "";
-  public usersId: string = "";
-  public alertMessage: string = "";
-  public profilePicture: string = "default-avatar";
 
-  public userData: object = {}
-  public numOfFriendRequests: number = 0;
+  //============================================================================
 
   private subscriptions = []
+  public query: string = "";
+  public alertMessage: string = "";
+  public sendMessageObject = {
+    id: "",
+    name: "",
+    content: ""
+  }
 
+  //User Data
+  public usersName: string = "";
+  public usersId: string = "";
+  public profilePicture: string = "default-avatar";
+  public messagePreviews = []
+  public alerts = []
+  public notifications = {
+    alerts: 0,
+    friendRequests: 0,
+    messages: 0
+  }
+
+//===============================================================================
+
+  public sendMessage() {
+    this.api.sendMessage(this.sendMessageObject);
+    console.log("Send Message To:", this.sendMessageObject.name);
+    console.log("User ID:", this.sendMessageObject.id);
+    console.log("Message Content:", this.sendMessageObject.content);
+    this.sendMessageObject.content = ""
+  }
   public searchForFriends(){
     this.router.navigate(['/search-results', {query: this.query}])
   }
 
+  public resetMessageNotifications(){
+    if(this.notifications.messages == 0) { return }
+    this.api.resetMessageNotifications();
+  }
+
+  public resetAlertNotifications() {
+    if(this.notifications.alerts == 0) { return }
+
+    let requestObject = {
+      location: "users/reset-alert-notifications",
+      method: "POST"
+    }
+
+    this.api.makeRequest(requestObject).then((val) => {
+      if(val.statusCode == 201) {
+        this.notifications.alerts = 0
+      } 
+    })
+  }
+  private setMessagePreviews(messages, messageNotifications) {
+    for(let i = messages.length - 1; i >= 0; i--) {
+      let lastMessage = messages[i].content[messages[i].content.length - 1]
+
+      let preview = {
+        messengerName: messages[i].messengerName,
+        messageContent: lastMessage.message,
+        messengerImage: "",
+        messengerId: messages[i].from_id,
+        isNew: false
+      }
+
+      if(lastMessage.messenger == this.usersId) {
+        preview.messengerImage = this.profilePicture
+      } else {
+        preview.messengerImage = messages[i].messengerProfileImage;
+        if(messageNotifications.includes(messages[i].from_id)) {
+          preview.isNew = true
+        }
+      }
+
+      if(preview.isNew) {
+        this.messagePreviews.unshift(preview);
+      } else {
+        this.messagePreviews.push(preview)
+      }
+    }
+  }
+
+  public messageLink(messageId) {
+    this.router.navigate(['/messages'], {state: {data: {msgId: messageId} } })
+  }
+
+  private setAlerts(notificationData) {
+    for(let alert of notificationData) {
+      let alertObj = JSON.parse(alert)
+
+      let newAlert = {
+        text: alertObj.alert_text,
+        icon: "",
+        bgColor: "",
+        href: ""
+      }
+
+      switch(alertObj.alert_type) {
+        case "new_friend":
+          newAlert.icon = "fa-user-check"
+          newAlert.bgColor = "bg-success"
+          newAlert.href = `/profile/${alertObj.from_id}`
+          break
+        case "liked_post":
+          newAlert.icon = "fa-thumbs-up"
+          newAlert.bgColor = "bg-purple"
+          newAlert.href = `/profile/${this.usersId}`
+          break
+        case "commented_post":
+          newAlert.icon = "fa-comment"
+          newAlert.bgColor = "bg-primary"
+          newAlert.href = `/profile/${this.usersId}`
+          break
+      }
+
+      this.alerts.push(newAlert)
+    }
+  }
 }

@@ -50,9 +50,6 @@ export class ApiService {
         .then(this.successHandler)
         .catch(this.errorHandler)
     }
-
-    console.log("Could not make the request. Make sure a method of GET or POST is supplied.")
-
   }
 
   public makeFriendRequest(to: string) {
@@ -91,6 +88,45 @@ export class ApiService {
           this.events.onAlertEvent.emit("Something went wrong and we could not handle your friend request.")
         }
         resolve(val);
+      })
+    })
+  }
+
+  public sendMessage(sendMessageObject, showAlerts = true){
+    if(!sendMessageObject.content && showAlerts) {
+      this.events.onAlertEvent.emit("You must provide some content for your message");
+      return
+    }
+
+    let requestObject = {
+      location: `users/send-message/${sendMessageObject.id}`,
+      method: "POST",
+      body: {
+        content: sendMessageObject.content
+      }
+    }
+
+    return new Promise((resolve, reject) => {
+      this.makeRequest(requestObject).then((val) => {
+        if(val.statusCode == 201 && showAlerts) {
+          this.events.onAlertEvent.emit("Successfully sent a message")
+        }
+        resolve(val)
+      })
+    })
+  }
+
+  public resetMessageNotifications() {
+    let requestObject = {
+      location: "users/reset-message-notifications",
+      method: "POST"
+    }
+    return new Promise((resolve, reject) => {
+      this.makeRequest(requestObject).then((val) => {
+        if(val.statusCode == 201) {
+          this.events.resetMessageNotificationsEvent.emit()
+        }
+        resolve()
       })
     })
   }
