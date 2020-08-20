@@ -67,6 +67,8 @@
                     </div>
                 </div>
 
+                <h2 *ngIf="!bestiePosts.length && !posts.col1.length" class="h4 ml-3 font-weight-300">Add Some friends to see their posts here.</h2>
+
                 <div *ngIf="bestiePosts.length" class="">
                     <h1 class="text-center text-xl-left text-uppercase text-primary h4 font-weight-900 mt-5 mb-0">
                         My Besties

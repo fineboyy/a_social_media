@@ -105,9 +105,6 @@ export class TopbarComponent implements OnInit {
 
   public sendMessage() {
     this.api.sendMessage(this.sendMessageObject);
-    console.log("Send Message To:", this.sendMessageObject.name);
-    console.log("User ID:", this.sendMessageObject.id);
-    console.log("Message Content:", this.sendMessageObject.content);
     this.sendMessageObject.content = ""
   }
   public searchForFriends(){

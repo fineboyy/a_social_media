@@ -122,7 +122,6 @@ export class PageMessagesComponent implements OnInit {
         }
 
         this.newMessage = ""
-        console.log("Success")
       }
     })
   }

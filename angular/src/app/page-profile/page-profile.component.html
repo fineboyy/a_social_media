@@ -25,7 +25,8 @@
                             </div>
                             <div class="card-body bg-purple text-center">
                                 <h3 class="text-white">{{ usersName }}</h3>
-                                <p class="w-50 h6 mx-auto text-white">I'm just a normal person, I like cats & {{ usersEmail }}. I also went skydiving once.</p>
+                                <p class="w-50 h6 mx-auto text-white">I'm just a normal person, I like cats & cake. I also went skydiving once.</p>
+                                <p  *ngIf="usersEmail.length <= 3" class="w-50 h6 mx-auto text-info">I'm a fake user, so don't in love lol. <br> my email is: {{ usersEmail }}</p>
                                 
                                 <div class="my-4">
                                     <div *ngIf="haveReceivedFriendRequest" class="my-4">
@@ -97,7 +98,7 @@
                         <h3 *ngIf="canAddUser" class="text-center w-75 mx-auto mt-5 text-purple">Add this user as a friend to see their latest posts</h3>
 
                         <div *ngIf="posts.length && showPosts >= posts.length">
-                            <h2 class="mt-5 text-primary text-center">No more posts, you've stalked this user completely. :D</h2>
+                            <h2 *ngIf="canSendMessage" class="mt-5 text-primary text-center">No more posts, you've stalked this user completely. :D</h2>
                             <a (click) = "backToTop()" class="link h4 text-center d-block w-max mx-auto my-3">Back to Top</a>
 
                         </div>

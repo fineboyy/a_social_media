@@ -75,7 +75,6 @@ export class PageFeedComponent implements OnInit {
     }
 
     this.api.makeRequest(requestObject).then((val) => {
-      console.log(val)
       if(val.statusCode == 201){
         //UPDATE FEED TO REFLECT RECENT POST
         val.newPost.ago = "just now"

@@ -8,17 +8,17 @@
 
     <div class="ml-auto mr-3 mt-3 align-self-start">
 
-        <button *ngIf=" use == 'result' && !haveSentFriendRequest && !haveReceivedFriendRequest && !isFriend" class="btn btn-sm btn-primary rounded-pill" (click) = "this.api.makeFriendRequest(resultRequest._id); haveSentFriendRequest = true;">Add Friend</button>
+        <button *ngIf=" use == 'result' && !haveSentFriendRequest && !haveReceivedFriendRequest && !isFriend" class="btn btn-sm btn-primary rounded-pill mb-1" (click) = "this.api.makeFriendRequest(resultRequest._id); haveSentFriendRequest = true;">Add Friend</button>
 
-        <button *ngIf="haveSentFriendRequest" class="btn btn-sm btn-warning rounded-pill ml-1">Friend Request Pending</button>
+        <button *ngIf="haveSentFriendRequest" class="btn btn-sm btn-warning rounded-pill ml-1 mb-1">Friend Request Sent</button>
 
-        <button *ngIf="isFriend" class="btn btn-sm btn-info rounded-pill ml-1" routerLink="/profile/{{ resultRequest._id }}">View Profile</button>
+        <button *ngIf="isFriend" class="btn btn-sm btn-info rounded-pill ml-1 mb-1" routerLink="/profile/{{ resultRequest._id }}">View Profile</button>
 
-        <button *ngIf="use == 'request' || haveReceivedFriendRequest" class="btn btn-sm btn-primary rounded-pill ml-1" (click)="accept(); haveReceivedFriendRequest = false; isFriend = true;">Accept</button>
+        <button *ngIf="use == 'request' || haveReceivedFriendRequest" class="btn btn-sm btn-primary rounded-pill ml-1 mb-1" (click)="accept(); haveReceivedFriendRequest = false; isFriend = true;">Accept</button>
 
-        <button class="btn btn-sm btn-success rounded-pill ml-1" data-toggle="modal" data-target="#staticBackdrop" (click)="updateSendMessageObject(resultRequest._id, resultRequest.name)">Send Message</button>
+        <button class="btn btn-sm btn-success rounded-pill ml-1 mb-1" data-toggle="modal" data-target="#staticBackdrop" (click)="updateSendMessageObject(resultRequest._id, resultRequest.name)">Send Message</button>
 
-        <button *ngIf="use == 'request' && !haveSentFriendRequest || haveReceivedFriendRequest" class="btn btn-sm btn-danger rounded-pill ml-1" (click)="decline(); haveReceivedFriendRequest = false;">Decline</button>
+        <button *ngIf="use == 'request' && !haveSentFriendRequest || haveReceivedFriendRequest" class="btn btn-sm btn-danger rounded-pill ml-1 mb-1" (click)="decline(); haveReceivedFriendRequest = false;">Decline</button>
 
     </div>
 </div>

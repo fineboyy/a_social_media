@@ -30,7 +30,7 @@
                                         <div class="">
                                             <a><img src="/assets/images/{{ message.messengerProfileImage }}.jpg"
                                                     class="rounded-circle profile-img-md"></a>
-                                            <span class="ml-3"><a
+                                            <span class="ml-3"><a routerLink="/profile/{{ message.from_id }}"
                                                     class="link text-primary ">{{ message.messengerName }}</a></span>
                                         </div>
                                         <i (click)="deleteMessage(message._id);" class="link mb-2 fas fa-trash-alt"></i>
