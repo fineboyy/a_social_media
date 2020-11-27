@@ -1,0 +1,1 @@
+This project is a typical social media web application with all the functionalities you would expect of such an app. You can add friends, create posts and send messages to your friends. Our latest addition, the novel Besties feature, allows you to add a maximum of two "besties" whose posts appear at the top of your feed.
